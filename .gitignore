@@ -1,0 +1,16 @@
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.env
+*.egg-info/
+dist/
+build/
+.DS_Store
+
+# Memory files (contain personal data)
+*_memory.json
+demo_memory.json
