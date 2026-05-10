@@ -13,7 +13,6 @@ export async function POST(req) {
     });
     return NextResponse.json(DecodeFormatter.versionToApiResponse(version));
   } catch (err) {
-    const status = err.message.includes('ANTHROPIC_API_KEY') ? 500 : 400;
-    return NextResponse.json({ error: err.message }, { status });
+    return NextResponse.json({ error: err.message }, { status: 400 });
   }
 }
