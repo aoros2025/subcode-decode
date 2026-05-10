@@ -1,16 +1,9 @@
-__pycache__/
-*.py[cod]
-*.pyo
-*.pyd
-.Python
-env/
-venv/
+node_modules/
+.next/
 .env
-*.egg-info/
-dist/
-build/
+.env.local
+*.local
 .DS_Store
 
-# Memory files (contain personal data)
+# Memory files contain personal data
 *_memory.json
-demo_memory.json
