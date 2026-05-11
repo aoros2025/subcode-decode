@@ -228,26 +228,7 @@ export default function Home() {
             {timeline && timeline.length === 0 && (
               <p style={{ color: '#666' }}>No entries yet. Decode something first.</p>
             )}
-            {timeline && timeline.map(entry => (
-              <div key={entry.id} style={{
-                marginBottom: '1rem', padding: '1rem 1.25rem',
-                background: '#111', border: '1px solid #1e1e1e', borderRadius: '10px',
-              }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
-                  <span style={{ fontSize: '0.8rem', color: '#555' }}>
-                    {new Date(entry.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                  </span>
-                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                    {entry.self_version && <span style={{ fontSize: '0.75rem', color: '#666' }}>v{entry.self_version}</span>}
-                    <DomainPill domain={entry.primary_domain} />
-                  </div>
-                </div>
-                {entry.archetype && <div style={{ fontSize: '0.85rem', color: '#aaa', fontStyle: 'italic', marginBottom: '0.4rem' }}>{entry.archetype}</div>}
-                <div style={{ fontSize: '0.9rem', color: '#ccc', lineHeight: 1.5 }}>
-                  {(entry.content || entry.url || '').slice(0, 120)}{(entry.content || '').length > 120 ? '…' : ''}
-                </div>
-              </div>
-            ))}
+            {timeline && timeline.length > 0 && <TimelineView entries={timeline} />}
           </div>
         )}
 
@@ -260,6 +241,183 @@ export default function Home() {
         )}
       </div>
     </main>
+  );
+}
+
+function TimelineView({ entries }) {
+  const [expanded, setExpanded] = useState(null);
+
+  // Group entries by calendar date, newest first
+  const groups = [];
+  const seen = {};
+  // entries are newest-first from API
+  entries.forEach(entry => {
+    const date = new Date(entry.timestamp).toLocaleDateString('en-US', {
+      weekday: 'long', month: 'long', day: 'numeric', year: 'numeric',
+    });
+    if (!seen[date]) { seen[date] = true; groups.push({ date, entries: [] }); }
+    groups[groups.length - 1].entries.push(entry);
+  });
+
+  return (
+    <div style={{ position: 'relative' }}>
+      {/* Vertical spine */}
+      <div style={{
+        position: 'absolute', left: '11px', top: '8px', bottom: 0,
+        width: '2px', background: 'linear-gradient(to bottom, #2a2a40, #1a1a2a 80%, transparent)',
+        borderRadius: '1px',
+      }} />
+
+      {groups.map(({ date, entries: dayEntries }) => (
+        <div key={date} style={{ marginBottom: '2rem' }}>
+          {/* Date header */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
+            <div style={{
+              width: '24px', height: '24px', borderRadius: '50%', flexShrink: 0,
+              background: '#0a0a0f', border: '2px solid #3a3a5a', zIndex: 1,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#5050a0' }} />
+            </div>
+            <span style={{ fontSize: '0.78rem', color: '#5050a0', fontWeight: 600, letterSpacing: '0.04em' }}>
+              {date}
+            </span>
+          </div>
+
+          {/* Entries for this day */}
+          {dayEntries.map(entry => {
+            const dec = entry.decoded || {};
+            const color = DOMAIN_COLORS[entry.primary_domain] || '#888';
+            const time = new Date(entry.timestamp).toLocaleTimeString('en-US', {
+              hour: '2-digit', minute: '2-digit', hour12: true,
+            });
+            const isOpen = expanded === entry.id;
+            const snippet = (entry.content || entry.url || '').slice(0, 100);
+
+            return (
+              <div key={entry.id} style={{ display: 'flex', gap: '0.75rem', marginBottom: '0.75rem', marginLeft: '0' }}>
+                {/* Node */}
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
+                  <div style={{
+                    width: '24px', height: '24px', borderRadius: '50%', flexShrink: 0, zIndex: 1,
+                    background: `${color}22`, border: `2px solid ${color}88`,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}>
+                    <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: color }} />
+                  </div>
+                </div>
+
+                {/* Card */}
+                <div
+                  onClick={() => setExpanded(isOpen ? null : entry.id)}
+                  style={{
+                    flex: 1, padding: '0.85rem 1rem', background: '#111',
+                    border: `1px solid ${isOpen ? color + '44' : '#1e1e1e'}`,
+                    borderRadius: '10px', cursor: 'pointer', transition: 'border-color 0.2s',
+                    marginBottom: 0,
+                  }}
+                >
+                  {/* Top row: time · version · domain · intensity */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem', flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: '0.75rem', color: '#444', fontVariantNumeric: 'tabular-nums' }}>{time}</span>
+                    {entry.self_version && (
+                      <span style={{
+                        fontSize: '0.7rem', fontFamily: 'monospace', padding: '0.1rem 0.4rem',
+                        background: '#1a1a2a', border: '1px solid #2a2a40', borderRadius: '4px', color: '#6060a0',
+                      }}>v{entry.self_version}</span>
+                    )}
+                    <DomainPill domain={entry.primary_domain} />
+                    {dec.intensity && (
+                      <IntensityBar intensity={dec.intensity} />
+                    )}
+                  </div>
+
+                  {/* Identity: archetype */}
+                  {entry.archetype && (
+                    <div style={{ fontSize: '0.9rem', color: '#ccc', fontStyle: 'italic', marginBottom: '0.3rem', fontWeight: 500 }}>
+                      {entry.archetype}
+                    </div>
+                  )}
+
+                  {/* Moment label */}
+                  {dec.timeline_label && (
+                    <div style={{ fontSize: '0.75rem', color: '#555', marginBottom: '0.4rem', letterSpacing: '0.02em' }}>
+                      "{dec.timeline_label}"
+                    </div>
+                  )}
+
+                  {/* Content snippet */}
+                  {snippet && (
+                    <div style={{ fontSize: '0.85rem', color: '#666', lineHeight: 1.5 }}>
+                      {snippet}{(entry.content || '').length > 100 ? '…' : ''}
+                    </div>
+                  )}
+
+                  {/* Expanded detail */}
+                  {isOpen && (
+                    <div style={{ marginTop: '1rem', borderTop: '1px solid #1e1e1e', paddingTop: '1rem' }}>
+                      {/* Domain scores — only activated ones */}
+                      {dec.domain_scores && Object.keys(dec.domain_scores).length > 0 && (
+                        <div style={{ marginBottom: '1rem' }}>
+                          <div style={{ fontSize: '0.68rem', color: '#444', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.5rem' }}>Domain Activation</div>
+                          {Object.entries(dec.domain_scores)
+                            .filter(([, v]) => v > 0)
+                            .sort(([, a], [, b]) => b - a)
+                            .map(([d, score]) => (
+                              <div key={d} style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.3rem' }}>
+                                <span style={{ fontSize: '0.72rem', color: '#555', width: '100px', flexShrink: 0 }}>{d}</span>
+                                <div style={{ flex: 1, height: '3px', background: '#1e1e1e', borderRadius: '2px', overflow: 'hidden' }}>
+                                  <div style={{ height: '100%', width: `${score * 10}%`, background: DOMAIN_COLORS[d] || '#666', borderRadius: '2px' }} />
+                                </div>
+                                <span style={{ fontSize: '0.7rem', color: '#444', width: '16px', textAlign: 'right' }}>{score}</span>
+                              </div>
+                            ))}
+                        </div>
+                      )}
+
+                      {[
+                        ['Causation', dec.causation],
+                        ['Duality', dec.duality],
+                        ['Blind Spot', dec.blindspot],
+                        ['Past Echo', dec.past_echo],
+                        ['Action Now', dec.action],
+                        ['Foundation', dec.foundation_piece],
+                      ].map(([label, value]) => value ? (
+                        <div key={label} style={{ marginBottom: '0.85rem' }}>
+                          <div style={{ fontSize: '0.68rem', color: '#444', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.2rem' }}>{label}</div>
+                          <div style={{ fontSize: '0.88rem', color: '#aaa', lineHeight: 1.6 }}>{value}</div>
+                        </div>
+                      ) : null)}
+                    </div>
+                  )}
+
+                  {/* Expand hint */}
+                  <div style={{ marginTop: '0.5rem', fontSize: '0.7rem', color: '#333' }}>
+                    {isOpen ? '↑ collapse' : '↓ expand'}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function IntensityBar({ intensity }) {
+  const filled = Math.round(intensity / 2); // 1–5 dots
+  return (
+    <div style={{ display: 'flex', gap: '2px', alignItems: 'center' }}>
+      {[1, 2, 3, 4, 5].map(i => (
+        <div key={i} style={{
+          width: '4px', height: '4px', borderRadius: '50%',
+          background: i <= filled
+            ? intensity >= 8 ? '#e07070' : intensity >= 5 ? '#d0a060' : '#6080a0'
+            : '#222',
+        }} />
+      ))}
+    </div>
   );
 }
 
